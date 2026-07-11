@@ -211,21 +211,27 @@ function render({ currentGame, players }) {
   });
 }
 
-// Kleiner Konfetti-Regen quer über den Screen (kein externes Assett nötig)
-function spawnConfetti(count = 90) {
+// Kleiner Konfetti-Regen, begrenzt auf den Bereich des Scoreboards (#overlay)
+function spawnConfetti(count = 70) {
   const colors = ["#e63946", "#3a86ff", "#2ecc71", "#f4c430", "#9d7bd8", "#ffd700"];
+  const overlayEl = document.getElementById("overlay");
+  const rect = overlayEl ? overlayEl.getBoundingClientRect() : {
+    left: 0, top: 0, width: window.innerWidth, height: window.innerHeight,
+  };
 
   for (let i = 0; i < count; i++) {
     const piece = document.createElement("div");
     piece.className = "confetti-piece";
-    piece.style.left = `${Math.random() * 100}vw`;
+    piece.style.left = `${rect.left + Math.random() * rect.width}px`;
+    piece.style.top = `${rect.top - 16}px`;
     piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-    piece.style.animationDuration = `${2.2 + Math.random() * 1.6}s`;
-    piece.style.animationDelay = `${Math.random() * 0.5}s`;
+    piece.style.animationDuration = `${1.6 + Math.random() * 1.1}s`;
+    piece.style.animationDelay = `${Math.random() * 0.4}s`;
     piece.style.setProperty("--rot", `${360 + Math.random() * 360}deg`);
-    piece.style.setProperty("--drift", `${(Math.random() - 0.5) * 220}px`);
+    piece.style.setProperty("--drift", `${(Math.random() - 0.5) * rect.width * 0.7}px`);
+    piece.style.setProperty("--fall", `${rect.height + 40 + Math.random() * 40}px`);
     document.body.appendChild(piece);
-    setTimeout(() => piece.remove(), 4500);
+    setTimeout(() => piece.remove(), 3200);
   }
 }
 

@@ -126,10 +126,9 @@ html, body {
   font-size: 16px;
 }
 
-/* Konfetti-Regen bei Krönung des Gesamtsiegers */
+/* Konfetti-Regen bei Krönung des Gesamtsiegers, begrenzt auf den Scoreboard-Bereich */
 .confetti-piece {
   position: fixed;
-  top: -20px;
   width: 8px;
   height: 14px;
   opacity: 0.95;
@@ -143,5 +142,5 @@ html, body {
 
 @keyframes confetti-fall {
   0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-  100% { transform: translate(var(--drift), 110vh) rotate(var(--rot)); opacity: 0.3; }
+  100% { transform: translate(var(--drift), var(--fall)) rotate(var(--rot)); opacity: 0.3; }
 }

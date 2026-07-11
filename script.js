@@ -24,7 +24,12 @@ const FLY_DURATION_MS = 650;                 // Dauer der Punkte-Flug-Animation
    -> beim erstmaligen Erreichen des Sieges: Konfetti + Krone neben dem Namen
 */
 
-const TOTAL_POINTS_ROW = 40; // Sheet-Zeile, in der die Gesamtpunktsumme (Spalte D) steht
+const TOTAL_POINTS_ROW = 40; // Sheet-Zeile, in der die Gesamtpunktsumme (Spalte D) stehen SOLLTE
+// Hinweis: Google's gviz-API überspringt in ihrer JSON-Antwort komplett leere
+// Zeilen, wodurch sich "rowIndex" gegenüber der echten Sheet-Zeile verschieben
+// kann. Deshalb wird die Summenzeile NICHT primär über TOTAL_POINTS_ROW erkannt,
+// sondern zusätzlich inhaltlich: die Zeile, in der A/B/C leer sind und nur D
+// einen Wert hat (siehe totalPointsFromContent weiter unten).
 
 const gameNumberEl = document.getElementById("game-number");
 const gamePillEl = document.getElementById("game-pill");
@@ -77,8 +82,11 @@ async function fetchSheetData() {
       scoreSystem = String(system).trim();
     }
 
-    // Spielnummer = Position der Zeile innerhalb der befüllten "Spiele"-Liste
-    if (gameName !== "") {
+    // Spielnummer = Position der Zeile innerhalb der "Spiele"-Liste.
+    // Eine Zeile zählt als Spiel, sobald Spalte B (Name) ODER Spalte C
+    // (Gewinner) befüllt ist – so bleibt die Nummerierung auch dann korrekt,
+    // wenn ein Gewinner schon eingetragen wurde, bevor der Spielname steht.
+    if (gameName !== "" || winner !== "") {
       gameCount += 1;
       if (winner === "" && currentGame === null) {
         currentGame = gameCount;
@@ -93,6 +101,13 @@ async function fetchSheetData() {
       players.push({ name, score: score === "" ? 0 : score });
     }
     if (rowNumber === TOTAL_POINTS_ROW && points !== "") {
+      totalPointsAvailable = points;
+    }
+    // Zusätzliche, robuste Erkennung: eine Zeile, die NUR in Spalte D einen
+    // Wert hat (kein Spielername, kein Gewinner, kein Teilnehmername), ist
+    // eindeutig die Gesamtpunktsumme – unabhängig davon, an welcher
+    // tatsächlichen Zeilennummer sie in der gviz-Antwort landet.
+    if (name === "" && gameName === "" && winner === "" && points !== "") {
       totalPointsAvailable = points;
     }
   });

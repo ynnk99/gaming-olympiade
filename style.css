@@ -26,7 +26,7 @@ html, body {
 #players {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
 }
 
 .pill {

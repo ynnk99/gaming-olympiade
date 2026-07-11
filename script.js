@@ -1,7 +1,7 @@
 /* ==========================================================
    KONFIGURATION – hier deine Werte eintragen
    ========================================================== */
-const SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE"; // aus der Sheet-URL zwischen /d/ und /edit
+const SHEET_ID = "wPc2gtuH7GM27OcCLJ5aYjlYbRSERNjbAI5VRsmPb9g"; // aus der Sheet-URL zwischen /d/ und /edit
 const SHEET_GID = "0";                       // Tab-ID, "0" ist meist der erste Tab
 const REFRESH_MS = 5000;                     // wie oft neu geladen wird (ms)
 

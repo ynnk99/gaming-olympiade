@@ -23,6 +23,12 @@ html, body {
   width: fit-content;
 }
 
+#players {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
 .pill {
   display: flex;
   align-items: center;
@@ -52,6 +58,7 @@ html, body {
 
 .player-name {
   letter-spacing: 0.2px;
+  min-width: 90px;
 }
 
 .player-score {

@@ -11,9 +11,11 @@ const FLY_DURATION_MS = 650;                 // Dauer der Punkte-Flug-Animation
    E2:E -> Gesamtpunktestand
    B2:B -> Name des Spiels je Runde (z.B. "League")
    C2:C -> Gewinner dieser Runde (leer = Runde läuft noch)
-   D2:D -> Punkte, die es für dieses Spiel gibt
+   D2:D -> Punkte, die es für dieses Spiel gibt (nur relevant im Modus "Einfach")
    F2   -> Wertungssystem ("Einfach" oder "Gewinnbaum")
    -> das aktuelle Spiel ist die erste Zeile ohne Eintrag in C
+   -> bei "Gewinnbaum" entspricht die Punktzahl eines Spiels immer
+      seiner Spielnummer (Spiel 3 = 3 Punkte, unabhängig von Spalte D)
    -> bei "Gewinnbaum" fliegen die Punkte beim Eintragen eines
       Gewinners animiert von der Spielnummer zu dessen Punktestand
 */
@@ -72,7 +74,11 @@ async function fetchSheetData() {
       if (winner === "" && currentGame === null) {
         currentGame = gameCount;
       }
-      gameRows.push({ index: gameCount, winner, points: points === "" ? 0 : points });
+      // Im Modus "Gewinnbaum" ist die Punktzahl eines Spiels immer gleich
+      // seiner Spielnummer (Spiel 3 -> 3 Punkte), sonst zählt Spalte D.
+      const effectivePoints =
+        scoreSystem === "Gewinnbaum" ? gameCount : (points === "" ? 0 : points);
+      gameRows.push({ index: gameCount, winner, points: effectivePoints });
     }
     if (name !== "") {
       players.push({ name, score: score === "" ? 0 : score });

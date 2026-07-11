@@ -1,0 +1,84 @@
+:root {
+  --bg: rgba(24, 17, 13, 0.88);
+  --text: #f4ede4;
+  --badge-bg: rgba(0, 0, 0, 0.35);
+  --pill-h: 46px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+
+#overlay {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px;
+  width: fit-content;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  height: var(--pill-h);
+  background: var(--bg);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 800;
+  font-size: 17px;
+  white-space: nowrap;
+  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+}
+
+.pill--game {
+  justify-content: center;
+  min-width: var(--pill-h);
+  padding: 0 16px;
+  font-size: 18px;
+  color: #d9cdbf;
+}
+
+.pill--player {
+  padding: 0 6px 0 16px;
+  gap: 10px;
+}
+
+.player-name {
+  letter-spacing: 0.2px;
+}
+
+.player-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--badge-bg);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* feste Teilnehmerfarben */
+.pill--player.c-1 { border-color: #e63946; --glow: #e63946; }
+.pill--player.c-2 { border-color: #3a86ff; --glow: #3a86ff; }
+.pill--player.c-3 { border-color: #2ecc71; --glow: #2ecc71; }
+.pill--player.c-4 { border-color: #f4c430; --glow: #f4c430; }
+.pill--player.c-5 { border-color: #9d7bd8; --glow: #9d7bd8; }
+
+/* kurzer Glow-Puls, wenn sich ein Punktestand ändert */
+@keyframes score-pulse {
+  0%   { box-shadow: 0 0 0 0 var(--glow); }
+  50%  { box-shadow: 0 0 16px 3px var(--glow); }
+  100% { box-shadow: 0 0 0 0 var(--glow); }
+}
+
+.pill--player.pulse { animation: score-pulse 0.9s ease; }

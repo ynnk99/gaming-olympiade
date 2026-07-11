@@ -109,3 +109,39 @@ html, body {
   pointer-events: none;
   transition: transform 0.65s cubic-bezier(0.3, 0.6, 0.4, 1), opacity 0.65s ease;
 }
+
+/* Gesamtsieger: goldener Glow um die Pille */
+.pill--player.winner {
+  border-color: #ffd700;
+  animation: winner-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes winner-glow {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(255, 215, 0, 0.45); }
+  50%      { box-shadow: 0 0 20px 5px rgba(255, 215, 0, 0.9); }
+}
+
+.crown {
+  margin-left: 6px;
+  font-size: 16px;
+}
+
+/* Konfetti-Regen bei Krönung des Gesamtsiegers */
+.confetti-piece {
+  position: fixed;
+  top: -20px;
+  width: 8px;
+  height: 14px;
+  opacity: 0.95;
+  pointer-events: none;
+  z-index: 10000;
+  border-radius: 2px;
+  animation-name: confetti-fall;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+
+@keyframes confetti-fall {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--drift), 110vh) rotate(var(--rot)); opacity: 0.3; }
+}

@@ -12,13 +12,19 @@ const FLY_DURATION_MS = 650;                 // Dauer der Punkte-Flug-Animation
    B2:B -> Name des Spiels je Runde (z.B. "League")
    C2:C -> Gewinner dieser Runde (leer = Runde läuft noch)
    D2:D -> Punkte, die es für dieses Spiel gibt (nur relevant im Modus "Einfach")
+   D40  -> Summe aller im Turnier vergebenen Punkte (nur relevant im Modus "Gewinnbaum")
    F2   -> Wertungssystem ("Einfach" oder "Gewinnbaum")
    -> das aktuelle Spiel ist die erste Zeile ohne Eintrag in C
    -> bei "Gewinnbaum" entspricht die Punktzahl eines Spiels immer
       seiner Spielnummer (Spiel 3 = 3 Punkte, unabhängig von Spalte D)
    -> bei "Gewinnbaum" fliegen die Punkte beim Eintragen eines
       Gewinners animiert von der Spielnummer zu dessen Punktestand
+   -> Gesamtsieger "Gewinnbaum": Punktestand > die Hälfte von D40
+   -> Gesamtsieger "Einfach": mehr als die Hälfte aller Spiele gewonnen
+   -> beim erstmaligen Erreichen des Sieges: Konfetti + Krone neben dem Namen
 */
+
+const TOTAL_POINTS_ROW = 40; // Sheet-Zeile, in der die Gesamtpunktsumme (Spalte D) steht
 
 const gameNumberEl = document.getElementById("game-number");
 const gamePillEl = document.getElementById("game-pill");
@@ -26,6 +32,7 @@ const playersEl = document.getElementById("players");
 
 let lastScores = {};     // zum Erkennen von Punkteänderungen (für den Puls-Effekt)
 let prevGameRows = null; // zum Erkennen frisch eingetragener Gewinner (für die Flug-Animation)
+let winnerName = null;   // Name des aktuellen Gesamtsiegers (für Krone + Konfetti)
 
 function buildUrl() {
   const ts = Date.now(); // cache-busting
@@ -52,6 +59,7 @@ async function fetchSheetData() {
   let currentGame = null;
   let gameCount = 0;
   let scoreSystem = "";
+  let totalPointsAvailable = null;
   const players = [];
   const gameRows = [];
 
@@ -84,6 +92,9 @@ async function fetchSheetData() {
     if (name !== "" && rowNumber <= 20) {
       players.push({ name, score: score === "" ? 0 : score });
     }
+    if (rowNumber === TOTAL_POINTS_ROW && points !== "") {
+      totalPointsAvailable = points;
+    }
   });
 
   // Alle bisherigen Spiele haben schon einen Gewinner -> nächstes Spiel ist "dran"
@@ -91,7 +102,33 @@ async function fetchSheetData() {
     currentGame = gameCount + 1;
   }
 
-  return { currentGame, players, gameRows, scoreSystem };
+  return { currentGame, players, gameRows, scoreSystem, totalPointsAvailable };
+}
+
+// Ermittelt den Gesamtsieger (falls die Siegbedingung schon erfüllt ist)
+function computeWinner({ players, gameRows, scoreSystem, totalPointsAvailable }) {
+  if (scoreSystem === "Gewinnbaum") {
+    if (!totalPointsAvailable) return null;
+    const threshold = totalPointsAvailable / 2;
+    return players.find((p) => p.score > threshold) || null;
+  }
+
+  if (scoreSystem === "Einfach") {
+    const totalGames = gameRows.length;
+    if (totalGames === 0) return null;
+    const threshold = totalGames / 2;
+
+    const winCounts = {};
+    gameRows.forEach((g) => {
+      if (g.winner) winCounts[g.winner] = (winCounts[g.winner] || 0) + 1;
+    });
+
+    const winnerEntry = Object.entries(winCounts).find(([, count]) => count > threshold);
+    if (!winnerEntry) return null;
+    return players.find((p) => p.name === winnerEntry[0]) || null;
+  }
+
+  return null;
 }
 
 function findNewlyCompletedGames(prevRows, currRows) {
@@ -144,12 +181,13 @@ function render({ currentGame, players }) {
   players.forEach((player, i) => {
     const colorClass = `c-${(i % 5) + 1}`;
     const changed = lastScores[player.name] !== undefined && lastScores[player.name] !== player.score;
+    const isWinner = player.name === winnerName;
 
     const pill = document.createElement("div");
-    pill.className = `pill pill--player ${colorClass}${changed ? " pulse" : ""}`;
+    pill.className = `pill pill--player ${colorClass}${changed ? " pulse" : ""}${isWinner ? " winner" : ""}`;
     pill.dataset.name = player.name;
     pill.innerHTML = `
-      <span class="player-name">${player.name}</span>
+      <span class="player-name">${player.name}${isWinner ? '<span class="crown" aria-hidden="true">👑</span>' : ""}</span>
       <span class="player-score">${player.score}</span>
     `;
     playersEl.appendChild(pill);
@@ -158,18 +196,50 @@ function render({ currentGame, players }) {
   });
 }
 
+// Kleiner Konfetti-Regen quer über den Screen (kein externes Assett nötig)
+function spawnConfetti(count = 90) {
+  const colors = ["#e63946", "#3a86ff", "#2ecc71", "#f4c430", "#9d7bd8", "#ffd700"];
+
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement("div");
+    piece.className = "confetti-piece";
+    piece.style.left = `${Math.random() * 100}vw`;
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDuration = `${2.2 + Math.random() * 1.6}s`;
+    piece.style.animationDelay = `${Math.random() * 0.5}s`;
+    piece.style.setProperty("--rot", `${360 + Math.random() * 360}deg`);
+    piece.style.setProperty("--drift", `${(Math.random() - 0.5) * 220}px`);
+    document.body.appendChild(piece);
+    setTimeout(() => piece.remove(), 4500);
+  }
+}
+
+function celebrateWinner() {
+  spawnConfetti();
+}
+
 async function tick() {
   try {
     const data = await fetchSheetData();
     const completed = prevGameRows ? findNewlyCompletedGames(prevGameRows, data.gameRows) : [];
     prevGameRows = data.gameRows;
 
+    // Sieger neu ermitteln; Konfetti nur auslösen, wenn sich jemand NEU krönt
+    const winner = computeWinner(data);
+    const newWinnerName = winner ? winner.name : null;
+    const winnerChanged = newWinnerName !== winnerName;
+    winnerName = newWinnerName;
+
     if (completed.length && data.scoreSystem === "Gewinnbaum") {
       completed.forEach((g) => flyPointsTo(g.points, g.winner));
       // Punktestand erst updaten, wenn die Flug-Animation gelandet ist
-      setTimeout(() => render(data), FLY_DURATION_MS);
+      setTimeout(() => {
+        render(data);
+        if (winnerChanged && winnerName) celebrateWinner();
+      }, FLY_DURATION_MS);
     } else {
       render(data);
+      if (winnerChanged && winnerName) celebrateWinner();
     }
   } catch (err) {
     console.error("Overlay-Update fehlgeschlagen:", err);

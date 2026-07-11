@@ -1,7 +1,7 @@
 /* ==========================================================
    KONFIGURATION – hier deine Werte eintragen
    ========================================================== */
-const SHEET_ID = "1wPc2gtuH7GM27OcCLJ5aYjlYbRSERNjbAI5VRsmPb9g"; // aus der Sheet-URL zwischen /d/ und /edit
+const SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE"; // aus der Sheet-URL zwischen /d/ und /edit
 const SHEET_GID = "0";                       // Tab-ID, "0" ist meist der erste Tab
 const REFRESH_MS = 5000;                     // wie oft neu geladen wird (ms)
 
@@ -41,22 +41,32 @@ async function fetchSheetData() {
   const rows = data.table.rows;
 
   let currentGame = null;
+  let gameCount = 0;
   const players = [];
 
   rows.forEach((row) => {
     const cells = row.c || [];
-    const name = cellValue(cells[0]);   // Spalte A
-    const gameNo = cellValue(cells[1]); // Spalte B
-    const winner = cellValue(cells[2]); // Spalte C
-    const score = cellValue(cells[4]);  // Spalte E
+    const name = cellValue(cells[0]);     // Spalte A
+    const gameName = cellValue(cells[1]); // Spalte B (Name des Spiels, z.B. "League")
+    const winner = cellValue(cells[2]);   // Spalte C
+    const score = cellValue(cells[4]);    // Spalte E
 
-    if (gameNo !== "" && winner === "" && currentGame === null) {
-      currentGame = gameNo;
+    // Spielnummer = Position der Zeile innerhalb der befüllten "Spiele"-Liste
+    if (gameName !== "") {
+      gameCount += 1;
+      if (winner === "" && currentGame === null) {
+        currentGame = gameCount;
+      }
     }
     if (name !== "") {
       players.push({ name, score: score === "" ? 0 : score });
     }
   });
+
+  // Alle bisherigen Spiele haben schon einen Gewinner -> nächstes Spiel ist "dran"
+  if (currentGame === null && gameCount > 0) {
+    currentGame = gameCount + 1;
+  }
 
   return { currentGame, players };
 }

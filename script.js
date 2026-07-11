@@ -55,8 +55,9 @@ async function fetchSheetData() {
   const players = [];
   const gameRows = [];
 
-  rows.forEach((row) => {
+  rows.forEach((row, rowIndex) => {
     const cells = row.c || [];
+    const rowNumber = rowIndex + 2;       // Sheet-Zeilennummer (Zeile 1 = Header, A2 = erste Datenzeile)
     const name = cellValue(cells[0]);     // Spalte A
     const gameName = cellValue(cells[1]); // Spalte B
     const winner = cellValue(cells[2]);   // Spalte C
@@ -80,7 +81,7 @@ async function fetchSheetData() {
         scoreSystem === "Gewinnbaum" ? gameCount : (points === "" ? 0 : points);
       gameRows.push({ index: gameCount, winner, points: effectivePoints });
     }
-    if (name !== "") {
+    if (name !== "" && rowNumber <= 20) {
       players.push({ name, score: score === "" ? 0 : score });
     }
   });

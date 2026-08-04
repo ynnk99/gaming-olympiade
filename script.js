@@ -21,6 +21,13 @@ const ODOMETER_DURATION_MS = 1500;           // Dauer der Ziffern-Hochroll-Anima
    -> Gesamtsieger "Gewinnbaum": Punktestand > die Hälfte von D40
    -> Gesamtsieger "Einfach": mehr als die Hälfte aller Spiele gewonnen
    -> beim erstmaligen Erreichen des Sieges: Konfetti + Krone neben dem Namen
+
+   M2, M3, M4 -> Kontrollkästchen zur Auswahl des Overlay-Designs
+      M2 = Design 1 "Standard" (abgerundete Pillen, wie bisher)
+      M3 = Design 2 "Karten"   (kantigere Karten mit Farbbalken)
+      M4 = Design 3 "Glas"     (Glassmorphism / durchscheinend)
+   -> ist keine oder mehrere Boxen angehakt, bleibt das zuletzt gültige
+      Design aktiv (Start-Default: Design 1)
 */
 
 const TOTAL_POINTS_ROW = 40; // Sheet-Zeile, in der die Gesamtpunktsumme (Spalte D) stehen SOLLTE
@@ -35,6 +42,7 @@ const playersEl = document.getElementById("players");
 
 let lastScores = {};     // zum Erkennen von Punkteänderungen (für den Puls-Effekt)
 let winnerName = null;   // Name des aktuellen Gesamtsiegers (für Krone + Konfetti)
+let currentDesign = 1;   // aktives Overlay-Design (1-3), Default = Standard
 
 function buildUrl() {
   const ts = Date.now(); // cache-busting
@@ -52,6 +60,13 @@ function cellValue(cell) {
   return cell.v;
 }
 
+// Google Sheets liefert Kontrollkästchen als boolean true/false (manchmal
+// auch als String "TRUE"/"FALSE"), daher robust auf beides prüfen.
+function isChecked(cell) {
+  if (!cell || cell.v === null || cell.v === undefined) return false;
+  return cell.v === true || cell.v === "TRUE" || cell.v === 1;
+}
+
 async function fetchSheetData() {
   const res = await fetch(buildUrl(), { cache: "no-store" });
   if (!res.ok) throw new Error(`Sheet-Anfrage fehlgeschlagen: ${res.status}`);
@@ -62,6 +77,7 @@ async function fetchSheetData() {
   let gameCount = 0;
   let scoreSystem = "";
   let totalPointsAvailable = null;
+  let design = null; // 1 = Standard, 2 = Karten, 3 = Glas (aus M2/M3/M4)
   const players = [];
   const gameRows = [];
 
@@ -74,9 +90,19 @@ async function fetchSheetData() {
     const points = cellValue(cells[3]);   // Spalte D
     const score = cellValue(cells[4]);    // Spalte E
     const system = cellValue(cells[5]);   // Spalte F
+    const designBox = cells[12];          // Spalte M (Kontrollkästchen)
 
     if (system !== "" && scoreSystem === "") {
       scoreSystem = String(system).trim();
+    }
+
+    // Design-Auswahl über die Kontrollkästchen in M2 (Zeile 2), M3 (Zeile 3)
+    // und M4 (Zeile 4). Ist mehr als eine Box angehakt, gewinnt die zuerst
+    // gefundene (M2 vor M3 vor M4).
+    if (design === null && isChecked(designBox)) {
+      if (rowNumber === 2) design = 1;
+      else if (rowNumber === 3) design = 2;
+      else if (rowNumber === 4) design = 3;
     }
 
     // Spielnummer = Position der Zeile innerhalb der "Spiele"-Liste.
@@ -114,7 +140,7 @@ async function fetchSheetData() {
     currentGame = gameCount + 1;
   }
 
-  return { currentGame, players, gameRows, scoreSystem, totalPointsAvailable };
+  return { currentGame, players, gameRows, scoreSystem, totalPointsAvailable, design };
 }
 
 // Ermittelt den Gesamtsieger (falls die Siegbedingung schon erfüllt ist)
@@ -324,6 +350,11 @@ async function tick() {
     const newWinnerName = winner ? winner.name : null;
     const winnerChanged = newWinnerName !== winnerName;
     winnerName = newWinnerName;
+
+    // Design nur wechseln, wenn tatsächlich eine Box angehakt ist;
+    // ansonsten bleibt das zuletzt gültige Design aktiv.
+    if (data.design !== null) currentDesign = data.design;
+    document.body.dataset.design = String(currentDesign);
 
     render(data);
     if (winnerChanged && winnerName) celebrateWinner();

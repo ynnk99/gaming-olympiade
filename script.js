@@ -264,19 +264,21 @@ function animateScoreChange(container, oldValue, newValue) {
     const totalSteps = (d1 - d0 + 10) % 10; // immer vorwärts zählen (nie rückwärts)
 
     // Ziffern-Walze von oben nach unten aufbauen: oberste Zelle = Zielziffer,
-    // unterste Zelle = aktuelle Ziffer. Beim Runterdrehen (translateY nach
-    // unten) rutscht die Zielziffer von oben ins Bild.
+    // unterste Zelle = aktuelle Ziffer. Start-Position zeigt die unterste
+    // Zelle (= aktuelle Ziffer); beim Runterdrehen rutscht die Walze auf 0,
+    // wodurch die Zielziffer von oben ins Bild kommt.
     const seq = Array.from({ length: totalSteps + 1 }, (_, p) => (d0 + (totalSteps - p)) % 10);
     strip.innerHTML = odometerCellsHTML(seq);
+    strip.style.transform = `translateY(-${totalSteps * ODOMETER_CELL_H}px)`;
     spinning.push({ strip, totalSteps });
   }
 
   // Reflow erzwingen, damit die Transitions beim nächsten Frame greifen
   void container.offsetHeight;
   requestAnimationFrame(() => {
-    spinning.forEach(({ strip, totalSteps }) => {
+    spinning.forEach(({ strip }) => {
       strip.style.transition = `transform ${ODOMETER_DURATION_MS}ms cubic-bezier(0.45, 0, 0.15, 1)`;
-      strip.style.transform = `translateY(${totalSteps * ODOMETER_CELL_H}px)`;
+      strip.style.transform = "translateY(0)";
     });
     entering.forEach((el) => el.classList.add("odometer-digit--enter-active"));
   });

@@ -200,7 +200,7 @@ html, body {
    ========================================================== */
 
 #ticker {
-  margin-top: 8px;
+  margin-top: 4px;
   height: 34px;
   overflow: hidden;
   box-sizing: border-box;
@@ -245,8 +245,8 @@ html, body {
 /* von links nach rechts laufendes Band (zwei identische Kopien
    hintereinander, dadurch nahtloser Loop) */
 @keyframes ticker-scroll-ltr {
-  0%   { transform: translateX(-50%); }
-  100% { transform: translateX(0%); }
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
 
 /* ==========================================================

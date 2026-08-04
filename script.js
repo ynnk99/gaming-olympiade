@@ -4,7 +4,6 @@
 const SHEET_ID = "1wPc2gtuH7GM27OcCLJ5aYjlYbRSERNjbAI5VRsmPb9g"; // aus der Sheet-URL zwischen /d/ und /edit
 const SHEET_GID = "0";                       // Tab-ID, "0" ist meist der erste Tab
 const REFRESH_MS = 5000;                     // wie oft neu geladen wird (ms)
-const FLY_DURATION_MS = 650;                 // Dauer der Punkte-Flug-Animation
 const ODOMETER_CELL_H = 18;                  // Höhe einer Ziffer in px (muss zu style.css .odometer-cell passen)
 const ODOMETER_DURATION_MS = 1500;           // Dauer der Ziffern-Hochroll-Animation
 
@@ -19,8 +18,6 @@ const ODOMETER_DURATION_MS = 1500;           // Dauer der Ziffern-Hochroll-Anima
    -> das aktuelle Spiel ist die erste Zeile ohne Eintrag in C
    -> bei "Gewinnbaum" entspricht die Punktzahl eines Spiels immer
       seiner Spielnummer (Spiel 3 = 3 Punkte, unabhängig von Spalte D)
-   -> bei "Gewinnbaum" fliegen die Punkte beim Eintragen eines
-      Gewinners animiert von der Spielnummer zu dessen Punktestand
    -> Gesamtsieger "Gewinnbaum": Punktestand > die Hälfte von D40
    -> Gesamtsieger "Einfach": mehr als die Hälfte aller Spiele gewonnen
    -> beim erstmaligen Erreichen des Sieges: Konfetti + Krone neben dem Namen
@@ -34,11 +31,9 @@ const TOTAL_POINTS_ROW = 40; // Sheet-Zeile, in der die Gesamtpunktsumme (Spalte
 // einen Wert hat (siehe totalPointsFromContent weiter unten).
 
 const gameNumberEl = document.getElementById("game-number");
-const gamePillEl = document.getElementById("game-pill");
 const playersEl = document.getElementById("players");
 
 let lastScores = {};     // zum Erkennen von Punkteänderungen (für den Puls-Effekt)
-let prevGameRows = null; // zum Erkennen frisch eingetragener Gewinner (für die Flug-Animation)
 let winnerName = null;   // Name des aktuellen Gesamtsiegers (für Krone + Konfetti)
 
 function buildUrl() {
@@ -146,48 +141,6 @@ function computeWinner({ players, gameRows, scoreSystem, totalPointsAvailable })
   }
 
   return null;
-}
-
-function findNewlyCompletedGames(prevRows, currRows) {
-  return currRows.filter((g) => {
-    if (g.winner === "") return false;
-    const prev = prevRows.find((p) => p.index === g.index);
-    return !prev || prev.winner === "";
-  });
-}
-
-function cssEscapeName(name) {
-  return window.CSS && CSS.escape ? CSS.escape(name) : name.replace(/["\\]/g, "\\$&");
-}
-
-function flyPointsTo(points, winnerName) {
-  const target = playersEl.querySelector(
-    `.pill--player[data-name="${cssEscapeName(winnerName)}"] .player-score`
-  );
-  if (!gamePillEl || !target) return;
-
-  const startRect = gamePillEl.getBoundingClientRect();
-  const endRect = target.getBoundingClientRect();
-
-  const startX = startRect.left + startRect.width / 2;
-  const startY = startRect.top + startRect.height / 2;
-  const endX = endRect.left + endRect.width / 2;
-  const endY = endRect.top + endRect.height / 2;
-
-  const dot = document.createElement("div");
-  dot.className = "flying-point";
-  dot.textContent = points;
-  dot.style.left = `${startX - 15}px`;
-  dot.style.top = `${startY - 15}px`;
-  document.body.appendChild(dot);
-
-  // im nächsten Frame starten, damit die CSS-Transition greift
-  requestAnimationFrame(() => {
-    dot.style.transform = `translate(${endX - startX}px, ${endY - startY}px) scale(0.75)`;
-    dot.style.opacity = "0.1";
-  });
-
-  setTimeout(() => dot.remove(), FLY_DURATION_MS + 150);
 }
 
 /* ==========================================================
@@ -365,8 +318,6 @@ function celebrateWinner() {
 async function tick() {
   try {
     const data = await fetchSheetData();
-    const completed = prevGameRows ? findNewlyCompletedGames(prevGameRows, data.gameRows) : [];
-    prevGameRows = data.gameRows;
 
     // Sieger neu ermitteln; Konfetti nur auslösen, wenn sich jemand NEU krönt
     const winner = computeWinner(data);
@@ -374,17 +325,8 @@ async function tick() {
     const winnerChanged = newWinnerName !== winnerName;
     winnerName = newWinnerName;
 
-    if (completed.length && data.scoreSystem === "Gewinnbaum") {
-      completed.forEach((g) => flyPointsTo(g.points, g.winner));
-      // Punktestand erst updaten, wenn die Flug-Animation gelandet ist
-      setTimeout(() => {
-        render(data);
-        if (winnerChanged && winnerName) celebrateWinner();
-      }, FLY_DURATION_MS);
-    } else {
-      render(data);
-      if (winnerChanged && winnerName) celebrateWinner();
-    }
+    render(data);
+    if (winnerChanged && winnerName) celebrateWinner();
   } catch (err) {
     console.error("Overlay-Update fehlgeschlagen:", err);
   }

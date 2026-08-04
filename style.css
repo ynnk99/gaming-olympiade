@@ -133,26 +133,6 @@ html, body {
 
 .pill--player.pulse { animation: score-pulse 0.9s ease; }
 
-/* fliegendes Punkte-Badge bei "Gewinnbaum"-Wertung */
-.flying-point {
-  position: fixed;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  height: 30px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
-  color: var(--text);
-  font-family: 'Manrope', system-ui, sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  pointer-events: none;
-  transition: transform 0.65s cubic-bezier(0.3, 0.6, 0.4, 1), opacity 0.65s ease;
-}
-
 /* Gesamtsieger: goldener Glow um die Pille */
 .pill--player.winner {
   border-color: #ffd700;

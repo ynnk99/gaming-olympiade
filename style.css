@@ -200,7 +200,7 @@ html, body {
    ========================================================== */
 
 #ticker {
-  margin-top: 2px;
+  margin-top: -11px;
   height: 34px;
   overflow: hidden;
   box-sizing: border-box;

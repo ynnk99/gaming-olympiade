@@ -6,7 +6,7 @@ const SHEET_GID = "0";                       // Tab-ID, "0" ist meist der erste 
 const REFRESH_MS = 5000;                     // wie oft neu geladen wird (ms)
 const FLY_DURATION_MS = 650;                 // Dauer der Punkte-Flug-Animation
 const ODOMETER_CELL_H = 18;                  // Höhe einer Ziffer in px (muss zu style.css .odometer-cell passen)
-const ODOMETER_DURATION_MS = 850;            // Dauer der Ziffern-Hochroll-Animation
+const ODOMETER_DURATION_MS = 1500;           // Dauer der Ziffern-Hochroll-Animation
 
 /* Spalten:
    A2:A -> Teilnehmername
@@ -210,8 +210,11 @@ function staticScoreHTML(value) {
     .join("");
 }
 
-// Animiert den Wechsel von oldValue -> newValue, indem jede Ziffer
-// wie bei einem Zählwerk/Spielautomaten nach oben durchrollt.
+// Animiert den Wechsel von oldValue -> newValue. Jede Ziffer dreht sich
+// dabei immer nach unten (neue Ziffer schiebt sich von oben rein), und
+// zwar direkt zur Zielziffer – ohne andere Ziffern erst durchlaufen zu lassen,
+// außer es liegen tatsächlich mehrere Schritte dazwischen (z.B. 2 -> 3 = ein
+// einzelner Schritt, 7 -> 2 = fünf Schritte, immer vorwärts/nach unten gezählt).
 function animateScoreChange(container, oldValue, newValue) {
   const oldStr = String(oldValue);
   const newStr = String(newValue);
@@ -227,6 +230,7 @@ function animateScoreChange(container, oldValue, newValue) {
 
   container.innerHTML = "";
   const spinning = []; // { strip, totalSteps }
+  const entering = []; // neu auftauchende Ziffern (z.B. von 9 auf 10)
 
   for (let i = 0; i < maxLen; i++) {
     const oldCh = oldPadded[i];
@@ -246,41 +250,41 @@ function animateScoreChange(container, oldValue, newValue) {
       continue; // unverändert, keine Animation nötig
     }
 
-    const distFromRight = maxLen - 1 - i; // 0 = letzte (am schnellsten drehende) Ziffer
-    const extraLoops = distFromRight === 0 ? 2 : distFromRight === 1 ? 1 : 0;
-
-    let totalSteps;
-    let seq;
     if (oldCh === " ") {
-      // neue Ziffer taucht links auf -> einmal komplett durchdrehen bis zum Zielwert
-      const d1 = parseInt(newCh, 10);
-      totalSteps = d1 + 10;
-      seq = Array.from({ length: totalSteps + 1 }, (_, s) => s % 10);
-    } else {
-      const d0 = parseInt(oldCh, 10);
-      const d1 = parseInt(newCh, 10);
-      const baseSteps = (d1 - d0 + 10) % 10;
-      totalSteps = baseSteps + extraLoops * 10;
-      seq = Array.from({ length: totalSteps + 1 }, (_, s) => (d0 + s) % 10);
+      // neue Ziffer taucht links auf (Zahl wird länger) -> einfach einblenden,
+      // kein Durchrollen anderer Ziffern
+      strip.innerHTML = odometerCellsHTML([newCh]);
+      digitWrapper.classList.add("odometer-digit--enter");
+      entering.push(digitWrapper);
+      continue;
     }
 
+    const d0 = parseInt(oldCh, 10);
+    const d1 = parseInt(newCh, 10);
+    const totalSteps = (d1 - d0 + 10) % 10; // immer vorwärts zählen (nie rückwärts)
+
+    // Ziffern-Walze von oben nach unten aufbauen: oberste Zelle = Zielziffer,
+    // unterste Zelle = aktuelle Ziffer. Beim Runterdrehen (translateY nach
+    // unten) rutscht die Zielziffer von oben ins Bild.
+    const seq = Array.from({ length: totalSteps + 1 }, (_, p) => (d0 + (totalSteps - p)) % 10);
     strip.innerHTML = odometerCellsHTML(seq);
     spinning.push({ strip, totalSteps });
   }
 
-  // Reflow erzwingen, damit die Transition beim nächsten Frame greift
+  // Reflow erzwingen, damit die Transitions beim nächsten Frame greifen
   void container.offsetHeight;
   requestAnimationFrame(() => {
     spinning.forEach(({ strip, totalSteps }) => {
-      strip.style.transition = `transform ${ODOMETER_DURATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-      strip.style.transform = `translateY(-${totalSteps * ODOMETER_CELL_H}px)`;
+      strip.style.transition = `transform ${ODOMETER_DURATION_MS}ms cubic-bezier(0.45, 0, 0.15, 1)`;
+      strip.style.transform = `translateY(${totalSteps * ODOMETER_CELL_H}px)`;
     });
+    entering.forEach((el) => el.classList.add("odometer-digit--enter-active"));
   });
 
   // Nach der Animation aufräumen: Walze wieder auf eine einzelne Zelle reduzieren
   setTimeout(() => {
     spinning.forEach(({ strip }) => {
-      const finalDigit = strip.lastElementChild ? strip.lastElementChild.textContent : "";
+      const finalDigit = strip.firstElementChild ? strip.firstElementChild.textContent : "";
       strip.style.transition = "none";
       strip.innerHTML = odometerCellsHTML([finalDigit]);
       strip.style.transform = "translateY(0)";
@@ -317,6 +321,15 @@ function render({ currentGame, players }) {
 
     lastScores[player.name] = player.score;
   });
+
+  // Einheitliche Breite für alle Spieler-Pillen, damit die Punktestände
+  // rechtsbündig untereinander stehen – unabhängig von der Namenslänge.
+  const pills = Array.from(playersEl.querySelectorAll(".pill--player"));
+  if (pills.length) {
+    pills.forEach((p) => { p.style.width = "auto"; });
+    const maxWidth = Math.max(...pills.map((p) => p.getBoundingClientRect().width));
+    pills.forEach((p) => { p.style.width = `${Math.ceil(maxWidth)}px`; });
+  }
 }
 
 // Kleiner Konfetti-Regen, begrenzt auf den Bereich des Scoreboards (#overlay)

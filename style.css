@@ -152,6 +152,28 @@ html, body {
   font-size: 16px;
 }
 
+/* Matchball: Teilnehmer gewinnt mit dem nächsten Spiel den Gesamtsieg.
+   Pulsierender orange-roter Glow zusätzlich zum Zielscheiben-Badge,
+   damit es sich klar vom goldenen Sieger-Glow unterscheidet. */
+.matchball-badge {
+  margin-left: 6px;
+  font-size: 15px;
+}
+
+.pill--player.matchball {
+  animation: matchball-glow 1.3s ease-in-out infinite;
+}
+
+/* falls Punkte-Puls UND Matchball gleichzeitig aktiv sind, beide kombinieren */
+.pill--player.matchball.pulse {
+  animation: score-pulse 0.9s ease, matchball-glow 1.3s ease-in-out infinite;
+}
+
+@keyframes matchball-glow {
+  0%, 100% { box-shadow: 0 0 5px 1px rgba(255, 87, 34, 0.55); }
+  50%      { box-shadow: 0 0 18px 5px rgba(255, 87, 34, 0.95); }
+}
+
 /* Konfetti-Regen bei Krönung des Gesamtsiegers, begrenzt auf den Scoreboard-Bereich */
 .confetti-piece {
   position: fixed;
@@ -169,6 +191,62 @@ html, body {
 @keyframes confetti-fall {
   0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
   100% { transform: translate(var(--drift), var(--fall)) rotate(var(--rot)); opacity: 0.3; }
+}
+
+/* ==========================================================
+   Liveticker – läuft nur, wenn im Sheet ab P2 mind. eine
+   Meldung eingetragen ist. Läuft als "unendliches Band" von
+   links nach rechts unter dem Overlay.
+   ========================================================== */
+
+#ticker {
+  margin-top: 8px;
+  height: 34px;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 0 16px;
+  background: var(--bg);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  transition: width 0.3s ease; /* sanft mitgehen, wenn sich die Overlay-Breite ändert */
+}
+
+#ticker[hidden] { display: none; }
+
+.ticker-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: ticker-scroll-ltr linear infinite;
+}
+
+.ticker-copy {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  padding-right: 48px; /* Lücke zur nächsten Wiederholung im Loop */
+}
+
+.ticker-item {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.ticker-sep {
+  margin: 0 16px;
+  color: #ffd700;
+  font-size: 12px;
+}
+
+/* von links nach rechts laufendes Band (zwei identische Kopien
+   hintereinander, dadurch nahtloser Loop) */
+@keyframes ticker-scroll-ltr {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
 }
 
 /* ==========================================================

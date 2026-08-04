@@ -28,6 +28,20 @@ const ODOMETER_DURATION_MS = 1500;           // Dauer der Ziffern-Hochroll-Anima
       M4 = Design 3 "Comic"    (knallige Verlaufs-Pillen, Gameshow-Look)
    -> ist keine oder mehrere Boxen angehakt, bleibt das zuletzt gültige
       Design aktiv (Start-Default: Design 1)
+
+   P2:P -> Liveticker-Meldungen (eine Meldung pro Zelle, beliebig viele)
+   -> ist P2 leer, wird kein Ticker angezeigt
+   -> ab P3 werden weitere Meldungen mit einem Trenner aneinandergereiht
+      und laufen als endlos wiederholtes Band von links nach rechts
+
+   Matchball: ein Teilnehmer hat "Matchball", wenn er mit dem Sieg im
+   nächsten (noch nicht gespielten) Spiel den Gesamtsieg erringen würde.
+   -> "Gewinnbaum": aktueller Punktestand + Punkte des nächsten Spiels
+      (Spalte D der Zeile, in der Spalte C noch leer ist) > die Hälfte
+      der Gesamtpunktsumme (robust erkannte Summenzeile, siehe unten)
+   -> "Einfach": bereits gewonnene Spiele + 1 (für das nächste Spiel)
+      > die Hälfte aller im Turnier gelisteten Spiele
+   -> wer schon Gesamtsieger ist, bekommt keine Matchball-Markierung mehr
 */
 
 const TOTAL_POINTS_ROW = 40; // Sheet-Zeile, in der die Gesamtpunktsumme (Spalte D) stehen SOLLTE
@@ -39,10 +53,15 @@ const TOTAL_POINTS_ROW = 40; // Sheet-Zeile, in der die Gesamtpunktsumme (Spalte
 
 const gameNumberEl = document.getElementById("game-number");
 const playersEl = document.getElementById("players");
+const tickerEl = document.getElementById("ticker");
+const tickerTrackEl = document.getElementById("ticker-track");
+
+const TICKER_SPEED_PX_S = 70; // Lauftempo des Tickers (px/Sekunde), unabhängig von der Textlänge konstant
 
 let lastScores = {};     // zum Erkennen von Punkteänderungen (für den Puls-Effekt)
 let winnerName = null;   // Name des aktuellen Gesamtsiegers (für Krone + Konfetti)
 let currentDesign = 1;   // aktives Overlay-Design (1-3), Default = Standard
+let lastTickerKey = null; // zum Erkennen, ob sich die Ticker-Meldungen geändert haben
 
 function buildUrl() {
   const ts = Date.now(); // cache-busting
@@ -77,9 +96,10 @@ async function fetchSheetData() {
   let gameCount = 0;
   let scoreSystem = "";
   let totalPointsAvailable = null;
-  let design = null; // 1 = Standard, 2 = Karten, 3 = Glas (aus M2/M3/M4)
+  let design = null; // 1 = Standard, 2 = Karten, 3 = Comic (aus M2/M3/M4)
   const players = [];
   const gameRows = [];
+  const tickerMessages = [];
 
   rows.forEach((row, rowIndex) => {
     const cells = row.c || [];
@@ -91,6 +111,11 @@ async function fetchSheetData() {
     const score = cellValue(cells[4]);    // Spalte E
     const system = cellValue(cells[5]);   // Spalte F
     const designBox = cells[12];          // Spalte M (Kontrollkästchen)
+    const tickerText = cellValue(cells[15]); // Spalte P (Liveticker-Meldung)
+
+    if (tickerText !== "") {
+      tickerMessages.push(String(tickerText).trim());
+    }
 
     if (system !== "" && scoreSystem === "") {
       scoreSystem = String(system).trim();
@@ -118,7 +143,10 @@ async function fetchSheetData() {
       // seiner Spielnummer (Spiel 3 -> 3 Punkte), sonst zählt Spalte D.
       const effectivePoints =
         scoreSystem === "Gewinnbaum" ? gameCount : (points === "" ? 0 : points);
-      gameRows.push({ index: gameCount, winner, points: effectivePoints });
+      // rawPoints = unveränderter Wert aus Spalte D, wird für die
+      // Matchball-Berechnung im Modus "Gewinnbaum" benötigt.
+      const rawPoints = points === "" ? 0 : Number(points);
+      gameRows.push({ index: gameCount, winner, points: effectivePoints, rawPoints });
     }
     if (name !== "" && rowNumber <= 20) {
       players.push({ name, score: score === "" ? 0 : score });
@@ -140,7 +168,7 @@ async function fetchSheetData() {
     currentGame = gameCount + 1;
   }
 
-  return { currentGame, players, gameRows, scoreSystem, totalPointsAvailable, design };
+  return { currentGame, players, gameRows, scoreSystem, totalPointsAvailable, design, tickerMessages };
 }
 
 // Ermittelt den Gesamtsieger (falls die Siegbedingung schon erfüllt ist)
@@ -167,6 +195,44 @@ function computeWinner({ players, gameRows, scoreSystem, totalPointsAvailable })
   }
 
   return null;
+}
+
+// Ermittelt, welche Teilnehmer mit dem Sieg im nächsten (noch nicht
+// gespielten) Spiel den Gesamtsieg erringen würden ("Matchball").
+// Wer schon Gesamtsieger ist, wird nicht mehr als Matchball markiert.
+function computeMatchballPlayers({ players, gameRows, scoreSystem, totalPointsAvailable, currentGame }, winnerName) {
+  const matchballNames = new Set();
+
+  if (scoreSystem === "Gewinnbaum") {
+    if (!totalPointsAvailable || currentGame === null) return matchballNames;
+    // "nächstes Spiel" = die Zeile, in der Spalte C (Gewinner) noch leer ist
+    const nextGameRow = gameRows.find((g) => g.index === currentGame);
+    if (!nextGameRow || !nextGameRow.rawPoints) return matchballNames; // Spiel noch nicht im Sheet angelegt / keine Punkte hinterlegt
+    const threshold = totalPointsAvailable / 2;
+    players.forEach((p) => {
+      if (p.name === winnerName) return;
+      if (p.score + nextGameRow.rawPoints > threshold) matchballNames.add(p.name);
+    });
+    return matchballNames;
+  }
+
+  if (scoreSystem === "Einfach") {
+    const totalGames = gameRows.length;
+    if (totalGames === 0) return matchballNames;
+    const threshold = totalGames / 2;
+    const winCounts = {};
+    gameRows.forEach((g) => {
+      if (g.winner) winCounts[g.winner] = (winCounts[g.winner] || 0) + 1;
+    });
+    players.forEach((p) => {
+      if (p.name === winnerName) return;
+      const count = winCounts[p.name] || 0;
+      if (count + 1 > threshold) matchballNames.add(p.name); // +1 = würde das nächste Spiel auch noch gewinnen
+    });
+    return matchballNames;
+  }
+
+  return matchballNames;
 }
 
 /* ==========================================================
@@ -273,7 +339,7 @@ function animateScoreChange(container, oldValue, newValue) {
   }, ODOMETER_DURATION_MS + 60);
 }
 
-function render({ currentGame, players }) {
+function render({ currentGame, players }, matchballNames = new Set()) {
   gameNumberEl.textContent = currentGame !== null ? currentGame : "–";
 
   playersEl.querySelectorAll(".pill--player").forEach((el) => el.remove());
@@ -283,12 +349,13 @@ function render({ currentGame, players }) {
     const prevScore = lastScores[player.name];
     const changed = prevScore !== undefined && prevScore !== player.score;
     const isWinner = player.name === winnerName;
+    const isMatchball = !isWinner && matchballNames.has(player.name);
 
     const pill = document.createElement("div");
-    pill.className = `pill pill--player ${colorClass}${changed ? " pulse" : ""}${isWinner ? " winner" : ""}`;
+    pill.className = `pill pill--player ${colorClass}${changed ? " pulse" : ""}${isWinner ? " winner" : ""}${isMatchball ? " matchball" : ""}`;
     pill.dataset.name = player.name;
     pill.innerHTML = `
-      <span class="player-name">${player.name}${isWinner ? '<span class="crown" aria-hidden="true">👑</span>' : ""}</span>
+      <span class="player-name">${player.name}${isWinner ? '<span class="crown" aria-hidden="true">👑</span>' : ""}${isMatchball ? '<span class="matchball-badge" aria-hidden="true" title="Matchball">🎯</span>' : ""}</span>
       <span class="player-score"></span>
     `;
     playersEl.appendChild(pill);
@@ -359,6 +426,74 @@ function showWinnerBanner(name) {
   setTimeout(() => banner.remove(), 4300); // an animation duration (4.2s) angepasst
 }
 
+/* ==========================================================
+   Liveticker: läuft nur, wenn mind. eine Meldung vorhanden ist.
+   Zwei identische Kopien der Meldungskette hintereinander ->
+   nahtloser Endlos-Loop, Geschwindigkeit konstant unabhängig
+   von der Textlänge.
+   ========================================================== */
+
+// Baut eine "Kopie" der aneinandergereihten Meldungen inkl. Trennzeichen
+function buildTickerCopy(messages) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "ticker-copy";
+  messages.forEach((msg, i) => {
+    const item = document.createElement("span");
+    item.className = "ticker-item";
+    item.textContent = msg;
+    wrapper.appendChild(item);
+
+    if (i < messages.length - 1) {
+      const sep = document.createElement("span");
+      sep.className = "ticker-sep";
+      sep.setAttribute("aria-hidden", "true");
+      sep.textContent = "✦";
+      wrapper.appendChild(sep);
+    }
+  });
+  return wrapper;
+}
+
+function updateTicker(messages) {
+  if (!messages || messages.length === 0) {
+    tickerEl.hidden = true;
+    tickerTrackEl.innerHTML = "";
+    tickerTrackEl.style.animationDuration = "";
+    lastTickerKey = null;
+    return;
+  }
+
+  // Läuft schon exakt dieser Meldungssatz? Dann nichts anfassen, damit
+  // die laufende Animation nicht bei jedem Refresh (alle 5s) neu startet.
+  const key = messages.join("||");
+  if (key === lastTickerKey && !tickerEl.hidden) return;
+  lastTickerKey = key;
+
+  tickerEl.hidden = false;
+  tickerTrackEl.innerHTML = "";
+  tickerTrackEl.appendChild(buildTickerCopy(messages));
+  tickerTrackEl.appendChild(buildTickerCopy(messages)); // zweite Kopie für den nahtlosen Loop
+
+  // Lauftempo an die Textlänge anpassen, damit es immer gleich schnell wirkt
+  requestAnimationFrame(() => {
+    const singleCopyWidth = tickerTrackEl.firstElementChild
+      ? tickerTrackEl.firstElementChild.getBoundingClientRect().width
+      : 0;
+    const duration = Math.max(singleCopyWidth / TICKER_SPEED_PX_S, 6);
+    tickerTrackEl.style.animationDuration = `${duration}s`;
+  });
+}
+
+// Passt die Ticker-Breite an die aktuelle Breite von #overlay an (von der
+// Spielnummer-Pille bis zum Ende der breitesten Teilnehmer-Kapsel), damit
+// der Ticker nicht die ganze Seite einnimmt, sondern exakt zum Overlay passt.
+function syncTickerWidth() {
+  const overlayEl = document.getElementById("overlay");
+  if (!overlayEl) return;
+  const width = overlayEl.getBoundingClientRect().width;
+  if (width > 0) tickerEl.style.width = `${Math.ceil(width)}px`;
+}
+
 async function tick() {
   try {
     const data = await fetchSheetData();
@@ -374,7 +509,11 @@ async function tick() {
     if (data.design !== null) currentDesign = data.design;
     document.body.dataset.design = String(currentDesign);
 
-    render(data);
+    const matchballNames = computeMatchballPlayers(data, winnerName);
+
+    render(data, matchballNames);
+    syncTickerWidth();
+    updateTicker(data.tickerMessages);
     if (winnerChanged && winnerName) {
       celebrateWinner();
       showWinnerBanner(winnerName);

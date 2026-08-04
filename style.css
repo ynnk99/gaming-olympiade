@@ -213,40 +213,99 @@ body[data-design="2"] .pill--player.winner {
 }
 
 /* ==========================================================
-   DESIGN 3 – "Glas": Glassmorphism, durchscheinend mit Blur
-   und einer feinen Akzentlinie unten statt vollem Rand.
-   Wird aktiv, sobald <body data-design="3"> gesetzt ist
-   (siehe script.js / M4).
+   DESIGN 3 – "Comic": knallige Verlaufs-Pillen mit dicker
+   dunkler Umrandung, verspielter Rundschrift und eingelassenem
+   Score-Kreis (Gameshow-Look). Wird aktiv, sobald
+   <body data-design="3"> gesetzt ist (siehe script.js / M4).
    ========================================================== */
 
 body[data-design="3"] .pill {
-  background: rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-bottom: 3px solid var(--accent-neutral);
-  border-radius: 16px;
-  font-weight: 700;
+  font-family: 'Baloo 2', 'Manrope', system-ui, sans-serif;
+  border-width: 4px;
+  border-style: solid;
+  border-color: rgba(12, 8, 24, 0.85);
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 800;
 }
 
+/* Spiel-Pille: neutraler Gold-Verlauf, dunkle Schrift (kein Spielerfarbe) */
 body[data-design="3"] .pill--game {
-  border-bottom-color: var(--accent-neutral);
+  background: linear-gradient(135deg, #ffe066, #f2a93b);
+  color: #2a1a05;
+  font-size: 19px;
 }
 
+/* Spieler-Pillen: verspielter Farbverlauf je Teilnehmerfarbe,
+   weiße Schrift mit dunklem "Comic-Outline" per text-shadow. */
 body[data-design="3"] .pill--player {
-  border-bottom-color: var(--glow, var(--accent-neutral));
+  color: #fff;
+  text-shadow:
+    -1px -1px 0 rgba(0, 0, 0, 0.55),
+     1px -1px 0 rgba(0, 0, 0, 0.55),
+    -1px  1px 0 rgba(0, 0, 0, 0.55),
+     1px  1px 0 rgba(0, 0, 0, 0.55);
 }
 
+body[data-design="3"] .pill--player.c-1 { background: linear-gradient(135deg, #ff8a8a, #e63946); }
+body[data-design="3"] .pill--player.c-2 { background: linear-gradient(135deg, #7c93ff, #3a56d4); }
+body[data-design="3"] .pill--player.c-3 { background: linear-gradient(135deg, #7de8a4, #23a862); }
+body[data-design="3"] .pill--player.c-4 { background: linear-gradient(135deg, #ffe066, #f2b705); }
+body[data-design="3"] .pill--player.c-5 { background: linear-gradient(135deg, #ff8ae2, #c239b3); }
+
+/* eingelassener Score-Kreis, dunklere Variante der Pillenfarbe mit feinem Ring */
 body[data-design="3"] .player-score {
-  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  text-shadow: none;
+  min-width: 32px;
 }
+
+body[data-design="3"] .pill--player.c-1 .player-score { background: #7a1620; }
+body[data-design="3"] .pill--player.c-2 .player-score { background: #1c2454; }
+body[data-design="3"] .pill--player.c-3 .player-score { background: #114a30; }
+body[data-design="3"] .pill--player.c-4 .player-score { background: #6b4a06; }
+body[data-design="3"] .pill--player.c-5 .player-score { background: #5c1554; }
 
 body[data-design="3"] .pill--player.winner {
-  border-bottom-width: 4px;
-  animation: winner-glow-glass 1.6s ease-in-out infinite;
+  border-color: #ffd700;
+  animation: winner-glow-comic 1.4s ease-in-out infinite;
 }
 
-@keyframes winner-glow-glass {
-  0%, 100% { box-shadow: 0 6px 10px -4px rgba(255, 215, 0, 0.5); }
-  50%      { box-shadow: 0 6px 22px -2px rgba(255, 215, 0, 0.95); }
+@keyframes winner-glow-comic {
+  0%, 100% { box-shadow: 0 0 8px 1px rgba(255, 215, 0, 0.55); transform: scale(1); }
+  50%      { box-shadow: 0 0 22px 6px rgba(255, 215, 0, 0.95); transform: scale(1.03); }
+}
+
+/* ==========================================================
+   Kurzer "XY hat gewonnen!"-Banner, erscheint zusammen mit dem
+   Konfetti, wenn sich jemand neu zum Gesamtsieger krönt.
+   ========================================================== */
+
+.winner-banner {
+  position: fixed;
+  z-index: 10001;
+  transform: translate(-50%, -20px) scale(0.7);
+  background: linear-gradient(135deg, #ffe066, #f2a93b);
+  color: #2a1a05;
+  font-family: 'Manrope', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  white-space: nowrap;
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 3px solid rgba(12, 8, 24, 0.85);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 22px rgba(255, 215, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  animation: winner-banner-pop 4.2s ease forwards;
+}
+
+@keyframes winner-banner-pop {
+  0%   { opacity: 0; transform: translate(-50%, -20px) scale(0.7); }
+  10%  { opacity: 1; transform: translate(-50%, -100%) scale(1.08); }
+  18%  { transform: translate(-50%, -100%) scale(1); }
+  85%  { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -118%) scale(0.92); }
 }

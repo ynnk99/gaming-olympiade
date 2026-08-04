@@ -25,7 +25,7 @@ const ODOMETER_DURATION_MS = 1500;           // Dauer der Ziffern-Hochroll-Anima
    M2, M3, M4 -> Kontrollkästchen zur Auswahl des Overlay-Designs
       M2 = Design 1 "Standard" (abgerundete Pillen, wie bisher)
       M3 = Design 2 "Karten"   (kantigere Karten mit Farbbalken)
-      M4 = Design 3 "Glas"     (Glassmorphism / durchscheinend)
+      M4 = Design 3 "Comic"    (knallige Verlaufs-Pillen, Gameshow-Look)
    -> ist keine oder mehrere Boxen angehakt, bleibt das zuletzt gültige
       Design aktiv (Start-Default: Design 1)
 */
@@ -341,6 +341,24 @@ function celebrateWinner() {
   spawnConfetti();
 }
 
+// Zeigt kurz einen Banner "<Name> hat gewonnen!" über dem Overlay an,
+// der nach ein paar Sekunden von selbst wieder verschwindet.
+function showWinnerBanner(name) {
+  const overlayEl = document.getElementById("overlay");
+  const rect = overlayEl ? overlayEl.getBoundingClientRect() : {
+    left: window.innerWidth / 2, top: 40, width: 0,
+  };
+
+  const banner = document.createElement("div");
+  banner.className = "winner-banner";
+  banner.textContent = `🏆 ${name} hat gewonnen!`;
+  banner.style.left = `${rect.left + rect.width / 2}px`;
+  banner.style.top = `${rect.top - 10}px`;
+  document.body.appendChild(banner);
+
+  setTimeout(() => banner.remove(), 4300); // an animation duration (4.2s) angepasst
+}
+
 async function tick() {
   try {
     const data = await fetchSheetData();
@@ -357,7 +375,10 @@ async function tick() {
     document.body.dataset.design = String(currentDesign);
 
     render(data);
-    if (winnerChanged && winnerName) celebrateWinner();
+    if (winnerChanged && winnerName) {
+      celebrateWinner();
+      showWinnerBanner(winnerName);
+    }
   } catch (err) {
     console.error("Overlay-Update fehlgeschlagen:", err);
   }

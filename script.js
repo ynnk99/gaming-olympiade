@@ -5,6 +5,8 @@ const SHEET_ID = "1wPc2gtuH7GM27OcCLJ5aYjlYbRSERNjbAI5VRsmPb9g"; // aus der Shee
 const SHEET_GID = "0";                       // Tab-ID, "0" ist meist der erste Tab
 const REFRESH_MS = 5000;                     // wie oft neu geladen wird (ms)
 const FLY_DURATION_MS = 650;                 // Dauer der Punkte-Flug-Animation
+const ODOMETER_CELL_H = 18;                  // Höhe einer Ziffer in px (muss zu style.css .odometer-cell passen)
+const ODOMETER_DURATION_MS = 850;            // Dauer der Ziffern-Hochroll-Animation
 
 /* Spalten:
    A2:A -> Teilnehmername
@@ -188,6 +190,104 @@ function flyPointsTo(points, winnerName) {
   setTimeout(() => dot.remove(), FLY_DURATION_MS + 150);
 }
 
+/* ==========================================================
+   Odometer-Animation für den Punktestand (Ziffern rollen hoch)
+   ========================================================== */
+
+// Baut die Zelle(n) einer Ziffern-Walze
+function odometerCellsHTML(digits) {
+  return digits.map((d) => `<span class="odometer-cell">${d}</span>`).join("");
+}
+
+// Statische Anzeige (keine Animation nötig, z.B. beim ersten Laden)
+function staticScoreHTML(value) {
+  return String(value)
+    .split("")
+    .map(
+      (ch) =>
+        `<span class="odometer-digit"><span class="odometer-strip">${odometerCellsHTML([ch])}</span></span>`
+    )
+    .join("");
+}
+
+// Animiert den Wechsel von oldValue -> newValue, indem jede Ziffer
+// wie bei einem Zählwerk/Spielautomaten nach oben durchrollt.
+function animateScoreChange(container, oldValue, newValue) {
+  const oldStr = String(oldValue);
+  const newStr = String(newValue);
+
+  if (oldStr === newStr) {
+    container.innerHTML = staticScoreHTML(newValue);
+    return;
+  }
+
+  const maxLen = Math.max(oldStr.length, newStr.length);
+  const oldPadded = oldStr.padStart(maxLen, " ");
+  const newPadded = newStr.padStart(maxLen, " ");
+
+  container.innerHTML = "";
+  const spinning = []; // { strip, totalSteps }
+
+  for (let i = 0; i < maxLen; i++) {
+    const oldCh = oldPadded[i];
+    const newCh = newPadded[i];
+
+    if (newCh === " ") continue; // Ziffer fällt weg (Zahl wurde kürzer) -> einfach auslassen
+
+    const digitWrapper = document.createElement("span");
+    digitWrapper.className = "odometer-digit";
+    const strip = document.createElement("span");
+    strip.className = "odometer-strip";
+    digitWrapper.appendChild(strip);
+    container.appendChild(digitWrapper);
+
+    if (oldCh === newCh) {
+      strip.innerHTML = odometerCellsHTML([newCh]);
+      continue; // unverändert, keine Animation nötig
+    }
+
+    const distFromRight = maxLen - 1 - i; // 0 = letzte (am schnellsten drehende) Ziffer
+    const extraLoops = distFromRight === 0 ? 2 : distFromRight === 1 ? 1 : 0;
+
+    let totalSteps;
+    let seq;
+    if (oldCh === " ") {
+      // neue Ziffer taucht links auf -> einmal komplett durchdrehen bis zum Zielwert
+      const d1 = parseInt(newCh, 10);
+      totalSteps = d1 + 10;
+      seq = Array.from({ length: totalSteps + 1 }, (_, s) => s % 10);
+    } else {
+      const d0 = parseInt(oldCh, 10);
+      const d1 = parseInt(newCh, 10);
+      const baseSteps = (d1 - d0 + 10) % 10;
+      totalSteps = baseSteps + extraLoops * 10;
+      seq = Array.from({ length: totalSteps + 1 }, (_, s) => (d0 + s) % 10);
+    }
+
+    strip.innerHTML = odometerCellsHTML(seq);
+    spinning.push({ strip, totalSteps });
+  }
+
+  // Reflow erzwingen, damit die Transition beim nächsten Frame greift
+  void container.offsetHeight;
+  requestAnimationFrame(() => {
+    spinning.forEach(({ strip, totalSteps }) => {
+      strip.style.transition = `transform ${ODOMETER_DURATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+      strip.style.transform = `translateY(-${totalSteps * ODOMETER_CELL_H}px)`;
+    });
+  });
+
+  // Nach der Animation aufräumen: Walze wieder auf eine einzelne Zelle reduzieren
+  setTimeout(() => {
+    spinning.forEach(({ strip }) => {
+      const finalDigit = strip.lastElementChild ? strip.lastElementChild.textContent : "";
+      strip.style.transition = "none";
+      strip.innerHTML = odometerCellsHTML([finalDigit]);
+      strip.style.transform = "translateY(0)";
+    });
+  }, ODOMETER_DURATION_MS + 60);
+}
+
 function render({ currentGame, players }) {
   gameNumberEl.textContent = currentGame !== null ? currentGame : "–";
 
@@ -195,7 +295,8 @@ function render({ currentGame, players }) {
 
   players.forEach((player, i) => {
     const colorClass = `c-${(i % 5) + 1}`;
-    const changed = lastScores[player.name] !== undefined && lastScores[player.name] !== player.score;
+    const prevScore = lastScores[player.name];
+    const changed = prevScore !== undefined && prevScore !== player.score;
     const isWinner = player.name === winnerName;
 
     const pill = document.createElement("div");
@@ -203,9 +304,16 @@ function render({ currentGame, players }) {
     pill.dataset.name = player.name;
     pill.innerHTML = `
       <span class="player-name">${player.name}${isWinner ? '<span class="crown" aria-hidden="true">👑</span>' : ""}</span>
-      <span class="player-score">${player.score}</span>
+      <span class="player-score"></span>
     `;
     playersEl.appendChild(pill);
+
+    const scoreEl = pill.querySelector(".player-score");
+    if (changed) {
+      animateScoreChange(scoreEl, prevScore, player.score);
+    } else {
+      scoreEl.innerHTML = staticScoreHTML(player.score);
+    }
 
     lastScores[player.name] = player.score;
   });

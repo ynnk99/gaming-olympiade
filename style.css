@@ -72,6 +72,35 @@ html, body {
   background: var(--badge-bg);
   font-size: 15px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+/* Ziffern-Walze für die Punkte-Hochroll-Animation */
+.odometer-digit {
+  position: relative;
+  display: inline-block;
+  width: 10px;
+  height: 18px;
+  overflow: hidden;
+  line-height: 18px;
+}
+
+.odometer-strip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+
+.odometer-cell {
+  display: block;
+  height: 18px;
+  line-height: 18px;
+  width: 10px;
+  text-align: center;
 }
 
 /* feste Teilnehmerfarben */

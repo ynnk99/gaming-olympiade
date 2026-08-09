@@ -22,7 +22,8 @@ html, body {
 
 /* Titel über dem Punktestand: zeigt die (vereinfachte) Siegbedingung aus J2 */
 #win-condition {
-  margin: 10px 14px 4px;
+  margin: 20px 14px 3px;
+  text-align: center;
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.4px;

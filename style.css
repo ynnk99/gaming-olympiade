@@ -37,7 +37,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 14px;
+  padding: 6px 14px 14px;
   width: fit-content;
 }
 

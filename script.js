@@ -22,6 +22,16 @@ const ODOMETER_DURATION_MS = 1500;           // Dauer der Ziffern-Hochroll-Anima
    -> Gesamtsieger "Einfach": mehr als die Hälfte aller Spiele gewonnen
    -> beim erstmaligen Erreichen des Sieges: Konfetti + Krone neben dem Namen
 
+   J2   -> Siegbedingung im Klartext, wird vereinfacht als Titel über
+           dem Punktestand angezeigt. Erkannte Muster:
+           - "Wer X von Y Spielen für sich entscheidet, gewinnt"
+             -> Anzeige: "Best of Y"
+           - "Erster mit X Punkten gewinnt"
+             -> Anzeige: "Ziel: X Punkte"
+           Passt der Text auf keins der beiden Muster, wird er
+           unverändert als Titel übernommen. Ist J2 leer, bleibt
+           der Titel ausgeblendet.
+
    M2, M3, M4 -> Kontrollkästchen zur Auswahl des Overlay-Designs
       M2 = Design 1 "Standard" (abgerundete Pillen, wie bisher)
       M3 = Design 2 "Karten"   (kantigere Karten mit Farbbalken)
@@ -53,6 +63,7 @@ const TOTAL_POINTS_ROW = 40; // Sheet-Zeile, in der die Gesamtpunktsumme (Spalte
 
 const gameNumberEl = document.getElementById("game-number");
 const playersEl = document.getElementById("players");
+const winConditionEl = document.getElementById("win-condition");
 const tickerEl = document.getElementById("ticker");
 const tickerTrackEl = document.getElementById("ticker-track");
 
@@ -97,6 +108,7 @@ async function fetchSheetData() {
   let scoreSystem = "";
   let totalPointsAvailable = null;
   let design = null; // 1 = Standard, 2 = Karten, 3 = Comic (aus M2/M3/M4)
+  let winConditionRaw = ""; // Rohtext aus J2 (Siegbedingung)
   const players = [];
   const gameRows = [];
   const tickerMessages = [];
@@ -110,8 +122,13 @@ async function fetchSheetData() {
     const points = cellValue(cells[3]);   // Spalte D
     const score = cellValue(cells[4]);    // Spalte E
     const system = cellValue(cells[5]);   // Spalte F
+    const winConditionText = cellValue(cells[9]); // Spalte J (Siegbedingung, nur J2 relevant)
     const designBox = cells[12];          // Spalte M (Kontrollkästchen)
     const tickerText = cellValue(cells[15]); // Spalte P (Liveticker-Meldung)
+
+    if (rowNumber === 2 && winConditionText !== "") {
+      winConditionRaw = String(winConditionText).trim();
+    }
 
     if (tickerText !== "") {
       tickerMessages.push(String(tickerText).trim());
@@ -168,7 +185,25 @@ async function fetchSheetData() {
     currentGame = gameCount + 1;
   }
 
-  return { currentGame, players, gameRows, scoreSystem, totalPointsAvailable, design, tickerMessages };
+  return { currentGame, players, gameRows, scoreSystem, totalPointsAvailable, design, tickerMessages, winConditionRaw };
+}
+
+// Vereinfacht den Klartext aus J2 zu einem kurzen Titel.
+// Erkennt die beiden üblichen Formulierungen und kürzt sie auf das
+// Wesentliche; unbekannte Formulierungen werden unverändert übernommen.
+function simplifyWinCondition(raw) {
+  if (!raw) return "";
+  const text = String(raw).trim();
+
+  // "Wer X von Y Spielen für sich entscheidet, gewinnt" -> "Best of Y"
+  let match = text.match(/wer\s+\d+\s+von\s+(\d+)\s+spielen?\b/i);
+  if (match) return `Best of ${match[1]}`;
+
+  // "Erster mit X Punkten gewinnt" -> "Ziel: X Punkte"
+  match = text.match(/erster\s+mit\s+(\d+)\s+punkten?\b/i);
+  if (match) return `Ziel: ${match[1]} Punkte`;
+
+  return text;
 }
 
 // Ermittelt den Gesamtsieger (falls die Siegbedingung schon erfüllt ist)
@@ -337,6 +372,19 @@ function animateScoreChange(container, oldValue, newValue) {
       strip.style.transform = "translateY(0)";
     });
   }, ODOMETER_DURATION_MS + 60);
+}
+
+// Zeigt die vereinfachte Siegbedingung (aus J2) als Titel über dem
+// Punktestand an. Ist J2 leer, bleibt der Titel ausgeblendet.
+function updateWinCondition(raw) {
+  const simplified = simplifyWinCondition(raw);
+  if (!simplified) {
+    winConditionEl.hidden = true;
+    winConditionEl.textContent = "";
+    return;
+  }
+  winConditionEl.textContent = simplified;
+  winConditionEl.hidden = false;
 }
 
 function render({ currentGame, players }, matchballNames = new Set()) {
@@ -511,6 +559,7 @@ async function tick() {
 
     const matchballNames = computeMatchballPlayers(data, winnerName);
 
+    updateWinCondition(data.winConditionRaw);
     render(data, matchballNames);
     syncTickerWidth();
     updateTicker(data.tickerMessages);

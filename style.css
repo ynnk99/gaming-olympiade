@@ -16,6 +16,22 @@ html, body {
   font-family: 'Manrope', system-ui, sans-serif;
 }
 
+#scoreboard {
+  width: fit-content;
+}
+
+/* Titel über dem Punktestand: zeigt die (vereinfachte) Siegbedingung aus J2 */
+#win-condition {
+  margin: 0 14px 4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(244, 237, 228, 0.75);
+}
+
+#win-condition[hidden] { display: none; }
+
 #overlay {
   display: flex;
   align-items: center;
@@ -313,6 +329,11 @@ body[data-design="3"] .pill--game {
   background: linear-gradient(135deg, #ffe066, #f2a93b);
   color: #2a1a05;
   font-size: 19px;
+}
+
+body[data-design="3"] #win-condition {
+  font-family: 'Baloo 2', 'Manrope', system-ui, sans-serif;
+  color: #ffe066;
 }
 
 /* Spieler-Pillen: verspielter Farbverlauf je Teilnehmerfarbe,

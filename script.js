@@ -201,7 +201,7 @@ function simplifyWinCondition(raw) {
 
   // "Erster mit X Punkten gewinnt" -> "Ziel: X Punkte"
   match = text.match(/erster\s+mit\s+(\d+)\s+punkten?\b/i);
-  if (match) return `Ziel: ${match[1]} Punkte`;
+  if (match) return `Win Condition: ${match[1]} Punkte`;
 
   return text;
 }

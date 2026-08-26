@@ -220,11 +220,40 @@ function playerWithMostPoints(players) {
   return players.reduce((best, p) => (p.score > best.score ? p : best), players[0]);
 }
 
+// Summe der Punkte aller noch NICHT gespielten Spiele (Spalte C = Gewinner
+// noch leer). Das ist das theoretische Maximum, das irgendein Spieler ab
+// jetzt noch dazugewinnen könnte.
+function remainingPointsSum(gameRows) {
+  return gameRows
+    .filter((g) => g.winner === "")
+    .reduce((sum, g) => sum + (g.rawPoints || 0), 0);
+}
+
+// Rechnerischer Sieg ("geclincht"): der aktuelle Punkteführer hat schon
+// gewonnen, wenn selbst im für ihn ungünstigsten Fall (er selbst bekommt
+// von den verbleibenden Punkten nichts mehr dazu) kein anderer Teilnehmer
+// ihn mit den noch verbleibenden Punkten einholen oder einstellen könnte.
+// Das greift auch dann, wenn die eigentliche Win-Condition-Schwelle noch
+// gar nicht erreicht ist.
+function clinchedLeader(players, gameRows) {
+  const remaining = remainingPointsSum(gameRows);
+  if (remaining <= 0 || players.length === 0) return null;
+  const leader = playerWithMostPoints(players);
+  const stillCatchable = players.some(
+    (p) => p.name !== leader.name && p.score + remaining >= leader.score
+  );
+  return stillCatchable ? null : leader;
+}
+
 // Ermittelt den Gesamtsieger (falls die Siegbedingung schon erfüllt ist).
-// Zusätzlich zur regulären Schwellenwert-Logik gibt es einen Fallback:
-// sobald ALLE Spiele einen Gewinner-Eintrag haben, ist die Olympiade auf
-// jeden Fall vorbei -> dann gewinnt automatisch, wer die meisten Punkte hat
-// (auch falls aus irgendeinem Grund keiner die Schwelle geknackt hat).
+// Zusätzlich zur regulären Schwellenwert-Logik gibt es zwei Fallbacks:
+// 1. Rechnerischer Sieg (clinchedLeader): die verbleibenden Spiele geben
+//    nicht mehr genug Punkte her, damit ein anderer Teilnehmer den
+//    aktuellen Führenden noch einholen könnte -> der Führende hat schon
+//    gewonnen, auch ohne die Schwelle geknackt zu haben.
+// 2. Sobald ALLE Spiele einen Gewinner-Eintrag haben, ist die Olympiade auf
+//    jeden Fall vorbei -> dann gewinnt automatisch, wer die meisten Punkte
+//    hat (auch falls aus irgendeinem Grund keiner die Schwelle geknackt hat).
 function computeWinner({ players, gameRows, scoreSystem, totalPointsAvailable }) {
   if (scoreSystem === "Gewinnbaum") {
     if (totalPointsAvailable) {
@@ -232,6 +261,8 @@ function computeWinner({ players, gameRows, scoreSystem, totalPointsAvailable })
       const thresholdWinner = players.find((p) => p.score > threshold);
       if (thresholdWinner) return thresholdWinner;
     }
+    const clinched = clinchedLeader(players, gameRows);
+    if (clinched) return clinched;
     if (allGamesFinished(gameRows)) return playerWithMostPoints(players);
     return null;
   }
@@ -250,6 +281,8 @@ function computeWinner({ players, gameRows, scoreSystem, totalPointsAvailable })
         if (thresholdWinner) return thresholdWinner;
       }
     }
+    const clinched = clinchedLeader(players, gameRows);
+    if (clinched) return clinched;
     if (allGamesFinished(gameRows)) return playerWithMostPoints(players);
     return null;
   }

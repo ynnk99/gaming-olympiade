@@ -103,7 +103,7 @@ async function fetchSheetData() {
   const data = parseGvizResponse(await res.text());
   const rows = data.table.rows;
 
-  let currentGame = null;
+  let lastPlayedIndex = 0; // höchste Spielnummer, die schon einen Gewinner hat
   let gameCount = 0;
   let scoreSystem = "";
   let totalPointsAvailable = null;
@@ -153,9 +153,13 @@ async function fetchSheetData() {
     // wenn ein Gewinner schon eingetragen wurde, bevor der Spielname steht.
     if (gameName !== "" || winner !== "") {
       gameCount += 1;
-      if (winner === "" && currentGame === null) {
-        currentGame = gameCount;
-      }
+      // "zuletzt gespieltes Spiel" = die Zeile mit der HÖCHSTEN Spielnummer,
+      // die schon einen Gewinner hat. Das ist bewusst NICHT einfach "die
+      // erste Zeile ohne Gewinner": wird ein Spiel übersprungen (z.B. Spiel 3
+      // bleibt leer, aber Spiel 4 hat schon einen Gewinner), soll das
+      // aktuelle Spiel trotzdem korrekt auf 5 weiterspringen, statt für
+      // immer bei 3 hängen zu bleiben.
+      if (winner !== "") lastPlayedIndex = gameCount;
       // Im Modus "Gewinnbaum" ist die Punktzahl eines Spiels immer gleich
       // seiner Spielnummer (Spiel 3 -> 3 Punkte), sonst zählt Spalte D.
       const effectivePoints =
@@ -180,10 +184,10 @@ async function fetchSheetData() {
     }
   });
 
-  // Alle bisherigen Spiele haben schon einen Gewinner -> nächstes Spiel ist "dran"
-  if (currentGame === null && gameCount > 0) {
-    currentGame = gameCount + 1;
-  }
+  // Aktuelles Spiel = das Spiel direkt nach dem zuletzt gespielten (auch
+  // wenn dazwischen eins übersprungen wurde). Gibt es noch keine Spiele,
+  // bleibt currentGame null.
+  const currentGame = gameCount > 0 ? lastPlayedIndex + 1 : null;
 
   return { currentGame, players, gameRows, scoreSystem, totalPointsAvailable, design, tickerMessages, winConditionRaw };
 }
@@ -206,11 +210,15 @@ function simplifyWinCondition(raw) {
   return text;
 }
 
-// Sind ALLE Spiele der Olympiade durchgespielt? -> jede Zeile in gameRows
-// hat einen Eintrag in Spalte C (Gewinner). Das ist unabhängig vom
-// Punktesystem und dient als Fallback-Erkennung fürs Olympiade-Ende.
+// Sind ALLE Spiele der Olympiade durchgespielt? Entscheidend ist, ob das
+// LETZTE (höchstnummerierte) Spiel schon einen Gewinner hat - nicht, ob
+// wirklich jede einzelne Zeile befüllt ist. So blockiert ein übersprungenes
+// Spiel (z.B. Spiel 3 bleibt leer, Spiel 4 hat aber schon einen Gewinner)
+// nicht dauerhaft die Erkennung des Olympiade-Endes, sobald das letzte
+// Spiel gespielt wurde.
 function allGamesFinished(gameRows) {
-  return gameRows.length > 0 && gameRows.every((g) => g.winner !== "");
+  if (gameRows.length === 0) return false;
+  return gameRows[gameRows.length - 1].winner !== "";
 }
 
 // Spieler mit den meisten Punkten (bei Punktegleichstand: der zuerst

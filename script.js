@@ -263,37 +263,55 @@ function computeWinner({ players, gameRows, scoreSystem, totalPointsAvailable })
 // Ermittelt, welche Teilnehmer mit dem Sieg im nächsten (noch nicht
 // gespielten) Spiel den Gesamtsieg erringen würden ("Matchball").
 // Wer schon Gesamtsieger ist, wird nicht mehr als Matchball markiert.
+//
+// Wichtig: das ist NICHT nur "Punktestand + nächstes Spiel > Schwelle".
+// Ist das nächste Spiel das LETZTE der Olympiade, greift zusätzlich der
+// Fallback aus computeWinner() ("alle Spiele fertig -> meiste Punkte
+// gewinnen"), auch wenn dabei die eigentliche Win-Condition-Schwelle gar
+// nicht geknackt wird. Deshalb wird hier für jeden Spieler simuliert,
+// wie der Punktestand/die Sieger-Liste aussehen würde, WENN er das
+// nächste Spiel gewinnt - und das Ergebnis durch computeWinner()
+// gejagt (statt die Schwellen-Logik ein zweites Mal von Hand
+// nachzubauen). So bleiben Matchball- und Gesamtsieg-Ermittlung immer
+// konsistent zueinander.
 function computeMatchballPlayers({ players, gameRows, scoreSystem, totalPointsAvailable, currentGame }, winnerName) {
   const matchballNames = new Set();
 
-  if (scoreSystem === "Gewinnbaum") {
-    if (!totalPointsAvailable || currentGame === null) return matchballNames;
-    // "nächstes Spiel" = die Zeile, in der Spalte C (Gewinner) noch leer ist
-    const nextGameRow = gameRows.find((g) => g.index === currentGame);
-    if (!nextGameRow || !nextGameRow.rawPoints) return matchballNames; // Spiel noch nicht im Sheet angelegt / keine Punkte hinterlegt
-    const threshold = totalPointsAvailable / 2;
-    players.forEach((p) => {
-      if (p.name === winnerName) return;
-      if (p.score + nextGameRow.rawPoints > threshold) matchballNames.add(p.name);
-    });
-    return matchballNames;
-  }
+  if (scoreSystem !== "Gewinnbaum" && scoreSystem !== "Einfach") return matchballNames;
+  if (currentGame === null) return matchballNames;
 
-  if (scoreSystem === "Einfach") {
-    const totalGames = gameRows.length;
-    if (totalGames === 0) return matchballNames;
-    const threshold = totalGames / 2;
-    const winCounts = {};
-    gameRows.forEach((g) => {
-      if (g.winner) winCounts[g.winner] = (winCounts[g.winner] || 0) + 1;
+  // "nächstes Spiel" = die Zeile, in der Spalte C (Gewinner) noch leer ist
+  const nextGameRow = gameRows.find((g) => g.index === currentGame);
+  if (!nextGameRow) return matchballNames; // Spiel noch nicht im Sheet angelegt
+  if (scoreSystem === "Gewinnbaum" && (!totalPointsAvailable || !nextGameRow.rawPoints)) return matchballNames;
+
+  players.forEach((p) => {
+    if (p.name === winnerName) return;
+
+    // Punktestand simulieren, als hätte p das nächste Spiel gewonnen.
+    // rawPoints entspricht in beiden Modi den Punkten, die es für DIESES
+    // Spiel gibt (Spalte D) - das ist genau das, was in der Praxis auf
+    // den Punktestand (Spalte E) draufaddiert würde.
+    const hypotheticalPlayers = players.map((q) =>
+      q.name === p.name ? { ...q, score: q.score + nextGameRow.rawPoints } : q
+    );
+    // Und die Spiel-Liste, als wäre das nächste Spiel mit p als Gewinner
+    // eingetragen - relevant für den "Einfach"-Schwellenwert (Siegzahlen)
+    // und dafür, dass computeWinner() erkennt, ob damit ALLE Spiele
+    // fertig sind (-> Meiste-Punkte-Fallback greift).
+    const hypotheticalGameRows = gameRows.map((g) =>
+      g.index === nextGameRow.index ? { ...g, winner: p.name } : g
+    );
+
+    const hypotheticalWinner = computeWinner({
+      players: hypotheticalPlayers,
+      gameRows: hypotheticalGameRows,
+      scoreSystem,
+      totalPointsAvailable,
     });
-    players.forEach((p) => {
-      if (p.name === winnerName) return;
-      const count = winCounts[p.name] || 0;
-      if (count + 1 > threshold) matchballNames.add(p.name); // +1 = würde das nächste Spiel auch noch gewinnen
-    });
-    return matchballNames;
-  }
+
+    if (hypotheticalWinner && hypotheticalWinner.name === p.name) matchballNames.add(p.name);
+  });
 
   return matchballNames;
 }

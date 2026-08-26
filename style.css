@@ -29,7 +29,10 @@ html, body {
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: rgba(244, 237, 228, 0.75);
-  background-color: 0 2px 4px rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 6px 14px;
+  border-radius: 8px;
+  display: inline-block;
 }
 
 #win-condition[hidden] { display: none; }

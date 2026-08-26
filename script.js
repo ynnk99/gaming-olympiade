@@ -206,29 +206,57 @@ function simplifyWinCondition(raw) {
   return text;
 }
 
-// Ermittelt den Gesamtsieger (falls die Siegbedingung schon erfüllt ist)
+// Sind ALLE Spiele der Olympiade durchgespielt? -> jede Zeile in gameRows
+// hat einen Eintrag in Spalte C (Gewinner). Das ist unabhängig vom
+// Punktesystem und dient als Fallback-Erkennung fürs Olympiade-Ende.
+function allGamesFinished(gameRows) {
+  return gameRows.length > 0 && gameRows.every((g) => g.winner !== "");
+}
+
+// Spieler mit den meisten Punkten (bei Punktegleichstand: der zuerst
+// gelistete Teilnehmer, also die Reihenfolge aus Spalte A).
+function playerWithMostPoints(players) {
+  if (players.length === 0) return null;
+  return players.reduce((best, p) => (p.score > best.score ? p : best), players[0]);
+}
+
+// Ermittelt den Gesamtsieger (falls die Siegbedingung schon erfüllt ist).
+// Zusätzlich zur regulären Schwellenwert-Logik gibt es einen Fallback:
+// sobald ALLE Spiele einen Gewinner-Eintrag haben, ist die Olympiade auf
+// jeden Fall vorbei -> dann gewinnt automatisch, wer die meisten Punkte hat
+// (auch falls aus irgendeinem Grund keiner die Schwelle geknackt hat).
 function computeWinner({ players, gameRows, scoreSystem, totalPointsAvailable }) {
   if (scoreSystem === "Gewinnbaum") {
-    if (!totalPointsAvailable) return null;
-    const threshold = totalPointsAvailable / 2;
-    return players.find((p) => p.score > threshold) || null;
+    if (totalPointsAvailable) {
+      const threshold = totalPointsAvailable / 2;
+      const thresholdWinner = players.find((p) => p.score > threshold);
+      if (thresholdWinner) return thresholdWinner;
+    }
+    if (allGamesFinished(gameRows)) return playerWithMostPoints(players);
+    return null;
   }
 
   if (scoreSystem === "Einfach") {
     const totalGames = gameRows.length;
-    if (totalGames === 0) return null;
-    const threshold = totalGames / 2;
-
-    const winCounts = {};
-    gameRows.forEach((g) => {
-      if (g.winner) winCounts[g.winner] = (winCounts[g.winner] || 0) + 1;
-    });
-
-    const winnerEntry = Object.entries(winCounts).find(([, count]) => count > threshold);
-    if (!winnerEntry) return null;
-    return players.find((p) => p.name === winnerEntry[0]) || null;
+    if (totalGames > 0) {
+      const threshold = totalGames / 2;
+      const winCounts = {};
+      gameRows.forEach((g) => {
+        if (g.winner) winCounts[g.winner] = (winCounts[g.winner] || 0) + 1;
+      });
+      const winnerEntry = Object.entries(winCounts).find(([, count]) => count > threshold);
+      if (winnerEntry) {
+        const thresholdWinner = players.find((p) => p.name === winnerEntry[0]);
+        if (thresholdWinner) return thresholdWinner;
+      }
+    }
+    if (allGamesFinished(gameRows)) return playerWithMostPoints(players);
+    return null;
   }
 
+  // Kein bekanntes Punktesystem hinterlegt -> trotzdem den Fallback nutzen,
+  // damit die Olympiade auch ohne "Gewinnbaum"/"Einfach" korrekt erkannt wird.
+  if (allGamesFinished(gameRows)) return playerWithMostPoints(players);
   return null;
 }
 

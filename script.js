@@ -496,8 +496,23 @@ function showWinnerBanner(name) {
   banner.className = "winner-banner";
   banner.textContent = `🏆 ${name} hat gewonnen!`;
   banner.style.left = `${rect.left + rect.width / 2}px`;
-  banner.style.top = `${rect.top - 10}px`;
+
+  // Erst unsichtbar einhängen, um die tatsächliche Höhe messen zu können
+  // (die hängt vom Text/Namen ab und ist vorher nicht bekannt).
+  banner.style.visibility = "hidden";
   document.body.appendChild(banner);
+  const bannerHeight = banner.getBoundingClientRect().height;
+
+  // Die Animation schiebt den Banner per translateY(-100%) zusätzlich um
+  // seine komplette eigene Höhe nach oben. Sitzt das Overlay nah am oberen
+  // Bildschirmrand, würde der Banner sonst abgeschnitten. Deshalb die
+  // Start-Position so nach unten klammern, dass nach der Animation immer
+  // ein Mindestabstand zum oberen Rand bleibt.
+  const MIN_TOP_MARGIN = 12;
+  const desiredTop = rect.top - 10;
+  const minAllowedTop = MIN_TOP_MARGIN + bannerHeight;
+  banner.style.top = `${Math.max(desiredTop, minAllowedTop)}px`;
+  banner.style.visibility = "visible";
 
   setTimeout(() => banner.remove(), 4300); // an animation duration (4.2s) angepasst
 }

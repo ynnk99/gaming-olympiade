@@ -33,7 +33,7 @@ html, body {
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: rgba(244, 237, 228, 0.75);
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.3);
   padding: 6px 14px;
   border-radius: 8px;
 }

@@ -466,10 +466,32 @@ function updateWinCondition(raw) {
   winConditionEl.hidden = false;
 }
 
-function render({ currentGame, players }, matchballNames = new Set()) {
+// Vergibt Silber/Bronze anhand des Punktestands, sobald die Olympiade
+// komplett vorbei ist. Rang wird über die Menge der DISTINCT Punktestände
+// ermittelt (nicht über die Listenposition), damit Punktegleichstand
+// fair behandelt wird: mehrere Spieler mit demselben zweithöchsten
+// Punktestand bekommen alle Silber, der nächste Rang wird dann trotzdem
+// als "dritthöchster Punktestand" (Bronze) gewertet.
+function computeMedalRanks(players) {
+  const distinctScoresDesc = [...new Set(players.map((p) => p.score))].sort((a, b) => b - a);
+  const rankByScore = new Map(distinctScoresDesc.map((score, rank) => [score, rank]));
+  const medalByName = new Map();
+  players.forEach((p) => {
+    const rank = rankByScore.get(p.score); // 0 = höchster Punktestand, 1 = zweithöchster, ...
+    if (rank === 1) medalByName.set(p.name, "🥈");
+    else if (rank === 2) medalByName.set(p.name, "🥉");
+  });
+  return medalByName;
+}
+
+function render({ currentGame, players, gameRows }, matchballNames = new Set()) {
   gameNumberEl.textContent = currentGame !== null ? currentGame : "–";
 
   playersEl.querySelectorAll(".pill--player").forEach((el) => el.remove());
+
+  // Medaillen für Platz 2/3 nur, wenn wirklich ALLE Spiele durchgespielt
+  // sind - während der Olympiade läuft, gibt's nur die Matchball-Markierung.
+  const medalByName = allGamesFinished(gameRows) ? computeMedalRanks(players) : new Map();
 
   players.forEach((player, i) => {
     const colorClass = `c-${(i % 5) + 1}`;
@@ -477,12 +499,14 @@ function render({ currentGame, players }, matchballNames = new Set()) {
     const changed = prevScore !== undefined && prevScore !== player.score;
     const isWinner = player.name === winnerName;
     const isMatchball = !isWinner && matchballNames.has(player.name);
+    const medal = !isWinner ? medalByName.get(player.name) : undefined;
+    const medalTitle = medal === "🥈" ? "Platz 2" : medal === "🥉" ? "Platz 3" : "";
 
     const pill = document.createElement("div");
     pill.className = `pill pill--player ${colorClass}${changed ? " pulse" : ""}${isWinner ? " winner" : ""}${isMatchball ? " matchball" : ""}`;
     pill.dataset.name = player.name;
     pill.innerHTML = `
-      <span class="player-name">${player.name}${isWinner ? '<span class="crown" aria-hidden="true">👑</span>' : ""}${isMatchball ? '<span class="matchball-badge" aria-hidden="true" title="Matchball">🎯</span>' : ""}</span>
+      <span class="player-name">${player.name}${isWinner ? '<span class="crown" aria-hidden="true">👑</span>' : ""}${medal ? `<span class="medal" aria-hidden="true" title="${medalTitle}">${medal}</span>` : ""}${isMatchball ? '<span class="matchball-badge" aria-hidden="true" title="Matchball">🎯</span>' : ""}</span>
       <span class="player-score"></span>
     `;
     playersEl.appendChild(pill);

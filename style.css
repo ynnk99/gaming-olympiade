@@ -176,6 +176,13 @@ html, body {
   font-size: 16px;
 }
 
+/* Silber-/Bronze-Medaille für Platz 2 und 3, sobald die Olympiade
+   komplett vorbei ist (alle Spiele haben einen Gewinner-Eintrag). */
+.medal {
+  margin-left: 6px;
+  font-size: 16px;
+}
+
 /* Matchball: Teilnehmer gewinnt mit dem nächsten Spiel den Gesamtsieg.
    Pulsierender orange-roter Glow zusätzlich zum Zielscheiben-Badge,
    damit es sich klar vom goldenen Sieger-Glow unterscheidet. */

@@ -29,6 +29,7 @@ html, body {
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: rgba(244, 237, 228, 0.75);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 #win-condition[hidden] { display: none; }

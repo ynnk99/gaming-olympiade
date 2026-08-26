@@ -493,7 +493,11 @@ function computeMedalRanks(players) {
 }
 
 function render({ currentGame, players, gameRows }, matchballNames = new Set()) {
-  gameNumberEl.textContent = currentGame !== null ? currentGame : "–";
+  // Nur anzeigen, wenn für diese Spielnummer auch wirklich eine Zeile im
+  // Sheet existiert - rechnerisch wäre "letztes gespieltes Spiel + 1" nach
+  // dem letzten Spiel z.B. "11", obwohl es gar kein Game 11 gibt.
+  const hasCurrentGameRow = currentGame !== null && currentGame <= gameRows.length;
+  gameNumberEl.textContent = hasCurrentGameRow ? currentGame : "–";
 
   playersEl.querySelectorAll(".pill--player").forEach((el) => el.remove());
 

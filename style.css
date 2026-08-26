@@ -22,7 +22,7 @@ html, body {
 
 /* Titel über dem Punktestand: zeigt die (vereinfachte) Siegbedingung aus J2 */
 #win-condition {
-  margin: 20px auto 3px
+  margin: 20px 20px 3px
   text-align: center;
   font-size: 16px;
   font-weight: 700;
@@ -32,7 +32,7 @@ html, body {
   background-color: rgba(0, 0, 0, 0.5);
   padding: 6px 14px;
   border-radius: 8px;
-  width: fit-content
+  display: inline-block
 }
 
 #win-condition[hidden] { display: none; }

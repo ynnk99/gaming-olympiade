@@ -495,22 +495,30 @@ function showWinnerBanner(name) {
   const banner = document.createElement("div");
   banner.className = "winner-banner";
   banner.textContent = `🏆 ${name} hat gewonnen!`;
-  banner.style.left = `${rect.left + rect.width / 2}px`;
 
-  // Erst unsichtbar einhängen, um die tatsächliche Höhe messen zu können
-  // (die hängt vom Text/Namen ab und ist vorher nicht bekannt).
+  // Erst unsichtbar einhängen, um die tatsächliche Breite/Höhe messen zu
+  // können (die hängen vom Namen ab und sind vorher nicht bekannt).
   banner.style.visibility = "hidden";
   document.body.appendChild(banner);
+  const bannerWidth = banner.getBoundingClientRect().width;
   const bannerHeight = banner.getBoundingClientRect().height;
 
-  // Die Animation schiebt den Banner per translateY(-100%) zusätzlich um
-  // seine komplette eigene Höhe nach oben. Sitzt das Overlay nah am oberen
-  // Bildschirmrand, würde der Banner sonst abgeschnitten. Deshalb die
-  // Start-Position so nach unten klammern, dass nach der Animation immer
-  // ein Mindestabstand zum oberen Rand bleibt.
-  const MIN_TOP_MARGIN = 12;
+  // Die Pop-Animation skaliert den Banner kurzzeitig auf bis zu 1.08x hoch
+  // und schiebt ihn per translateY(-100%) um seine eigene Höhe nach oben.
+  // Damit er dabei nie über einen Bildschirmrand hinausragt, wird sowohl
+  // die horizontale als auch die vertikale Position geklammert.
+  const MARGIN = 12;
+  const SCALE_BUFFER = 1.1; // etwas Puffer für die 1.08x-Aufskalierung der Animation
+
+  const halfWidth = (bannerWidth * SCALE_BUFFER) / 2;
+  const desiredCenterX = rect.left + rect.width / 2;
+  const minCenterX = MARGIN + halfWidth;
+  const maxCenterX = window.innerWidth - MARGIN - halfWidth;
+  const centerX = Math.min(Math.max(desiredCenterX, minCenterX), maxCenterX);
+  banner.style.left = `${centerX}px`;
+
   const desiredTop = rect.top - 10;
-  const minAllowedTop = MIN_TOP_MARGIN + bannerHeight;
+  const minAllowedTop = MARGIN + bannerHeight * SCALE_BUFFER;
   banner.style.top = `${Math.max(desiredTop, minAllowedTop)}px`;
   banner.style.visibility = "visible";
 
